@@ -6,10 +6,8 @@ import { yellow } from '../colors';
 
 export default class AWSScanner implements ScannerStrategy {
   async scan(codeSnippets: string[], modelName: keyof typeof OpenAIModels) {
-    const statementsPromises = Promise.all(
-      codeSnippets.map(async snippet => {
-        return await Services.aws.getStatementsFromCode(snippet, modelName);
-      })
+    const snippetsPromises = Promise.all(
+      codeSnippets.map(async snippet => snippet.replace(/\s+/g, ''))
     );
 
     await showAsyncSpinner(
@@ -19,13 +17,13 @@ export default class AWSScanner implements ScannerStrategy {
           'Scanning for aws-sdk calls (this process might take a few minutes)'
         ),
       },
-      statementsPromises
+      snippetsPromises
     );
 
-    const statements = (await statementsPromises).flat();
+    const snippets = (await snippetsPromises).flat();
 
-    const policiesPromise = Services.aws.getPoliciesFromStatements(
-      statements,
+    const policiesPromise = Services.aws.getPoliciesFromSnippets(
+      snippets,
       modelName
     );
 
