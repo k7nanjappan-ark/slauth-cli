@@ -9,6 +9,7 @@ import isGitRepository from '../utils/is-git-repository';
 import { CloudProviders } from '@slauth.io/langchain-wrapper';
 import ScannerStrategies from '../utils/scanner-strategies';
 import Scanner from '../utils/scanner';
+import { getTokenUsage } from '@slauth.io/langchain-wrapper';
 
 //Fixed adding a new string to the model name parameter
 const scanCommand = new Command();
@@ -33,19 +34,40 @@ scanCommand
     '-o, --output-file <outputFile>',
     'Write generated policies to a file instead of stdout'
   )
+  .option(
+    '-u, --usage [usageFile]',
+    'Display or Save the token usage',
+    (usageFile) => {
+      return usageFile || false;
+    }
+  )
   .argument('<path>', 'Repository path')
   .action(async (pathArg, { cloudProvider, openaiModel, outputFile }) => {
     try {
       const fullPath = path.resolve(process.cwd(), pathArg);
       const result = await scan(fullPath, cloudProvider, openaiModel);
+      const { usage } = scanCommand.opts();
+      const usageFile = usage === true ? false : usage;
 
       if (result) {
         const resultJSONString = JSON.stringify(result, null, 2);
+        const tokenUsageJSONString = JSON.stringify(getTokenUsage(), null, 2);
+
+        if (usage) {
+          if (usageFile) {
+            const fullOutFilePath = path.resolve(process.cwd(), usageFile);
+            await writeToFile(fullOutFilePath, tokenUsageJSONString);
+            console.log(`${green('Wrote Token Usage to file:')} ${fullOutFilePath}`);
+          } else {
+            console.log(green(`Token usage:`));
+            console.log(tokenUsageJSONString);
+          }
+        }
 
         if (outputFile) {
           const fullOutFilePath = path.resolve(process.cwd(), outputFile);
           await writeToFile(fullOutFilePath, resultJSONString);
-          console.log(`${green('Wrote to file:')} ${fullOutFilePath}`);
+          console.log(`${green('Wrote Policy to file:')} ${fullOutFilePath}`);
           return;
         }
 
